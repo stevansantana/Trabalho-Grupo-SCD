@@ -16,7 +16,9 @@ class Processo:
             self.liberar_acesso()
             
     def solicitar_acesso(self):
-        pass
+        mensagem = f"1|{self.id_processo}|".ljust(10, '0')
+        self.cliente_socket.sendto(mensagem.encode(), (self.host, self.porta))
+        print(f"Processo {self.id_processo} enviou REQUEST para o coordenador")
     
     def regiao_critica(self):
         pass
