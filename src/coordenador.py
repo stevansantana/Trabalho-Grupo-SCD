@@ -1,5 +1,6 @@
 import threading
 import socket
+import queue
 
 mensagens_tamanho = 10
 
@@ -7,6 +8,8 @@ class Coordenador:
     def __init__(self, host, porta):
         self.host = host
         self.porta = porta
+        self.pedidos = queue.Queue()
+        self.processos_atendidos = {}
         self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.servidor_socket.bind((self.host, self.porta))
         
