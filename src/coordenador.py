@@ -22,5 +22,16 @@ class Coordenador:
         pass 
     
     def interface_comando(self):
-        pass       
-    
+        while True:
+            comando = input("Digite um comando\n\n1: imprimir a fila de pedidos atual.\n2: imprimir quantas vezes cada processo foi atendido.\n3: encerrar a execução.\n\n")
+            if comando == '1':
+                print("Fila de pedidos atual:", list(self.pedidos.queue))
+            elif comando == '2':
+                print("Quantidade de vezes que cada processo foi atendido:", self.processos_atendidos)
+            elif comando == '3':
+                print("Encerrando execução.")
+                self.servidor_socket.close()
+                break       
+
+coordenador = Coordenador('localhost', 8080)
+coordenador.iniciar_comunicacao()
