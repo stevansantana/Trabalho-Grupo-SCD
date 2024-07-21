@@ -1,4 +1,6 @@
 import socket
+from datetime import datetime
+import time
 
 class Processo:
     def __init__(self, host, porta, id_processo, repeticoes, intervalo):
@@ -21,7 +23,17 @@ class Processo:
         print(f"Processo {self.id_processo} enviou REQUEST para o coordenador")
     
     def regiao_critica(self):
-        pass
+        while True:
+            mensagem = (self.cliente_socket.recv(1024).decode('utf-8')).split('|')
+            if mensagem[0] == '2':
+                print(f"Coordenador enviou GRANT para o Processo {self.id_processo}")
+                tempo_atual = (datetime.now()).strftime("%H:%M:%S.%f")
+
+                with open('resultado.txt','a') as arquivo:
+                    arquivo.write(f"Processo {self.id_processo} --- {tempo_atual}\n")
+
+                time.sleep(self.intervalo)
+                break
     
     def liberar_acesso(self):
         pass
