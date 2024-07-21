@@ -1,6 +1,7 @@
 import threading
 import socket
 import queue
+import os
 
 mensagens_tamanho = 10
 
@@ -24,14 +25,28 @@ class Coordenador:
     def processar_pedidos(self):
         pass 
     
+    def limpar_tela(self):
+        # Para Unix/Linux/Mac
+        if os.name == 'posix':
+            os.system('clear')
+        # Para Windows
+        elif os.name == 'nt':
+            os.system('cls')
+    
     def interface_comando(self):
         while True:
+            self.limpar_tela()
             comando = input("Digite um comando\n\n1: imprimir a fila de pedidos atual.\n2: imprimir quantas vezes cada processo foi atendido.\n3: encerrar a execução.\n\n")
             if comando == '1':
+                self.limpar_tela()
                 print("Fila de pedidos atual:", list(self.pedidos.queue))
+                input("Pressione Enter para continuar...")
             elif comando == '2':
+                self.limpar_tela()
                 print("Quantidade de vezes que cada processo foi atendido:", self.processos_atendidos)
+                input("Pressione Enter para continuar...")
             elif comando == '3':
+                self.limpar_tela()
                 print("Encerrando execução.")
                 self.servidor_socket.close()
                 break       
