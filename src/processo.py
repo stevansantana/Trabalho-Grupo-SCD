@@ -36,7 +36,10 @@ class Processo:
                 break
     
     def liberar_acesso(self):
-        pass
+        mensagem = f"3|{self.id_processo}|".ljust(10, '0')
+        self.cliente_socket.sendto(mensagem.encode(), (self.host, self.porta))
+        print(f"Processo {self.id_processo} enviou RELEASE para o coordenador")
+
     
         
     
