@@ -26,10 +26,8 @@ class Coordenador:
         pass 
     
     def limpar_tela(self):
-        # Para Unix/Linux/Mac
         if os.name == 'posix':
             os.system('clear')
-        # Para Windows
         elif os.name == 'nt':
             os.system('cls')
     
