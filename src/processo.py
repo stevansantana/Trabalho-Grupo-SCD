@@ -1,4 +1,5 @@
 import socket
+import threading
 from datetime import datetime
 import time
 
@@ -40,6 +41,18 @@ class Processo:
         self.cliente_socket.sendto(mensagem.encode(), (self.host, self.porta))
         print(f"Processo {self.id_processo} enviou RELEASE para o coordenador")
 
+def iniciar_processo(id):
+    p = Processo('localhost', 8080, id, 10, 5)
+    p.iniciar()
+
+threads = []
+for f in range(5):
+    t = threading.Thread(target=iniciar_processo, args=([f]))
+    threads.append(t)
+    t.start()
+
+for t in threads:
+    t.join()
     
         
     
