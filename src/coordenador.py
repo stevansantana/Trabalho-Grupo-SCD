@@ -37,7 +37,12 @@ class Coordenador:
             print(f'Processo {processo[1]} adicionado a fila.')
     
     def processar_pedidos(self):
-        pass 
+        while True:
+            if not self.blocked:
+                cliente, id = self.pedidos.get()
+                self.blocked = True
+                mensagem = f"2|{id}|".ljust(10, '0')
+                cliente.send(mensagem.encode('utf-8'))
     
     def interface_comando(self):
         while True:
