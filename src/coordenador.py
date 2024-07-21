@@ -30,6 +30,11 @@ class Coordenador:
             print(f'Processo {pedido[1]} liberado.')
         else:
             print(f'MENSAGEM INVALIDA: {pedido}')
+
+    def adicionar_fila(self,processo):
+        if processo not in list(self.pedidos.queue):
+            self.pedidos.put(processo)
+            print(f'Processo {processo[1]} adicionado a fila.')
     
     def processar_pedidos(self):
         pass 
