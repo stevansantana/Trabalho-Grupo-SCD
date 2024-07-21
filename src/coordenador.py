@@ -20,7 +20,7 @@ class Coordenador:
         threading.Thread(target=self.interface_comando).start()
 
     def receber_mensagens(self):
-        pedido, cliente = self.servidor_socket.recv(1024)
+        pedido, cliente = self.servidor_socket.recvfrom(1024)
         pedido = (pedido.decode('utf-8')).split('|')
 
         if pedido[0] == '1':
@@ -39,10 +39,10 @@ class Coordenador:
     def processar_pedidos(self):
         while True:
             if not self.blocked:
-                cliente, id = self.pedidos.get()
+                id, cliente= self.pedidos.get()
                 self.blocked = True
                 mensagem = f"2|{id}|".ljust(10, '0')
-                cliente.send(mensagem.encode('utf-8'))
+                self.servidor_socket.sendto(mensagem.encode('utf-8'), (cliente))
     
     def interface_comando(self):
         while True:
