@@ -10,6 +10,7 @@ class Coordenador:
         self.porta = porta
         self.pedidos = queue.Queue()
         self.processos_atendidos = {}
+        self.mensagens_log = []
         self.blocked = False
         self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.servidor_socket.bind((self.host, self.porta))
@@ -22,8 +23,8 @@ class Coordenador:
     def receber_mensagens(self):
         while True:
             pedido, cliente = self.servidor_socket.recvfrom(1024)
+            self.mensagens_log.append(pedido)
             pedido = (pedido.decode('utf-8')).split('|')
-
             if pedido[0] == '1':
                 self.adicionar_fila((pedido[1],cliente))            
             elif pedido[0] == '3':
@@ -31,6 +32,8 @@ class Coordenador:
                 print(f'Processo {pedido[1]} liberado.')
             else:
                 print(f'MENSAGEM INVALIDA: {pedido}')
+            
+            self.processos_atendidos.add(pedido[0])
 
     def adicionar_fila(self,processo):
         if processo not in list(self.pedidos.queue):
@@ -44,6 +47,8 @@ class Coordenador:
                 self.blocked = True
                 mensagem = f"2|{id}|".ljust(10, '0')
                 self.servidor_socket.sendto(mensagem.encode('utf-8'), (cliente))
+                self.mensagens_log.append(mensagem)
+
     
     def interface_comando(self):
         while True:
@@ -51,7 +56,8 @@ class Coordenador:
             if comando == '1':
                 print("Fila de pedidos atual:", list(self.pedidos.queue))
             elif comando == '2':
-                print("Quantidade de vezes que cada processo foi atendido:", self.processos_atendidos)
+                print("Quantidade de vezes que cada processo foi atendido:")
+                
             elif comando == '3':
                 print("Encerrando execução.")
                 self.servidor_socket.close()
