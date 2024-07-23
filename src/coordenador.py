@@ -11,6 +11,7 @@ class Coordenador:
         self.porta = porta
         self.pedidos = queue.Queue()
         self.processos_atendidos = {}
+        self.blocked = False
         self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.servidor_socket.bind((self.host, self.porta))
         
@@ -20,10 +21,30 @@ class Coordenador:
         threading.Thread(target=self.interface_comando).start()
 
     def receber_mensagens(self):
-        pass
+        while True:
+            pedido, cliente = self.servidor_socket.recvfrom(1024)
+            pedido = (pedido.decode('utf-8')).split('|')
+
+            if pedido[0] == '1':
+                self.adicionar_fila((pedido[1],cliente))            
+            elif pedido[0] == '3':
+                self.blocked = False
+                print(f'Processo {pedido[1]} liberado.')
+            else:
+                print(f'MENSAGEM INVALIDA: {pedido}')
+
+    def adicionar_fila(self,processo):
+        if processo not in list(self.pedidos.queue):
+            self.pedidos.put(processo)
+            print(f'Processo {processo[0]} adicionado a fila.')
     
     def processar_pedidos(self):
-        pass 
+        while True:
+            if not self.blocked:
+                id, cliente= self.pedidos.get()
+                self.blocked = True
+                mensagem = f"2|{id}|".ljust(10, '0')
+                self.servidor_socket.sendto(mensagem.encode('utf-8'), (cliente))
     
     def limpar_tela(self):
         # Para Unix/Linux/Mac
