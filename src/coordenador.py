@@ -10,7 +10,8 @@ class Coordenador:
         self.host = host
         self.porta = porta
         self.pedidos = queue.Queue()
-        self.processos_atendidos = {}
+        self.processos_atendidos = set()
+        self.mensagens_log = []
         self.blocked = False
         self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.servidor_socket.bind((self.host, self.porta))
@@ -23,8 +24,8 @@ class Coordenador:
     def receber_mensagens(self):
         while True:
             pedido, cliente = self.servidor_socket.recvfrom(1024)
+            self.mensagens_log.append(pedido.decode('utf-8'))
             pedido = (pedido.decode('utf-8')).split('|')
-
             if pedido[0] == '1':
                 self.adicionar_fila((pedido[1],cliente))            
             elif pedido[0] == '3':
@@ -32,11 +33,29 @@ class Coordenador:
                 print(f'Processo {pedido[1]} liberado.')
             else:
                 print(f'MENSAGEM INVALIDA: {pedido}')
+            
+            self.processos_atendidos.add(pedido[1])
 
     def adicionar_fila(self,processo):
         if processo not in list(self.pedidos.queue):
             self.pedidos.put(processo)
             print(f'Processo {processo[0]} adicionado a fila.')
+
+    def numerar_atendimentos(self):
+        for pr in self.processos_atendidos:
+            processo = int(pr)
+            request = grant = release = 0
+            for m in self.mensagens_log:
+                msg =  m.split('|')
+                if int(msg[1]) == processo:
+                    if msg[0] == '1':
+                        request += 1
+                    if msg[0] == '2':
+                        grant += 1
+                    if msg[0] == '3':
+                        release += 1
+
+            print(f'Processo {processo}: REQUEST:{request}    GRANT:{grant}    RELEASE:{release}')
     
     def processar_pedidos(self):
         while True:
@@ -45,7 +64,8 @@ class Coordenador:
                 self.blocked = True
                 mensagem = f"2|{id}|".ljust(10, '0')
                 self.servidor_socket.sendto(mensagem.encode('utf-8'), (cliente))
-    
+                self.mensagens_log.append(mensagem)
+
     def limpar_tela(self):
         # Para Unix/Linux/Mac
         if os.name == 'posix':
@@ -61,11 +81,12 @@ class Coordenador:
             if comando == '1':
                 self.limpar_tela()
                 print("Fila de pedidos atual:", list(self.pedidos.queue))
-                input("Pressione Enter para continuar...")
+                input("\nPressione Enter para continuar...")
             elif comando == '2':
                 self.limpar_tela()
-                print("Quantidade de vezes que cada processo foi atendido:", self.processos_atendidos)
-                input("Pressione Enter para continuar...")
+                print("Quantidade de vezes que cada processo foi atendido:")
+                self.numerar_atendimentos()
+                input("\nPressione Enter para continuar...")
             elif comando == '3':
                 self.limpar_tela()
                 print("Encerrando execução.")
