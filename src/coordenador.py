@@ -90,12 +90,10 @@ class Coordenador:
             if comando == '1':
                 self.limpar_tela()
                 print("Fila de pedidos atual:", list(self.pedidos.queue))
-                input("\nPressione Enter para continuar...")
             elif comando == '2':
                 self.limpar_tela()
                 print("Quantidade de vezes que cada processo foi atendido:")
                 self.numerar_atendimentos()
-                input("\nPressione Enter para continuar...")
             elif comando == '3':
                 self.limpar_tela()
                 print("Encerrando execução.")
