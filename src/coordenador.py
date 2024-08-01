@@ -52,6 +52,13 @@ class Coordenador:
         if processo not in list(self.pedidos.queue):
             self.pedidos.put(processo)
             print(f'Processo {processo[0]} adicionado a fila.')
+            
+    def exibir_fila(self):
+        if self.pedidos.qsize() > 0:
+            for index, pr in enumerate(list(self.pedidos.queue)):
+                print(f'{index+1}° - Processo {pr[0]}')
+        else:
+            print('A fila esta vázia!')
 
     def numerar_atendimentos(self):
         for pr in self.processos_atendidos:
@@ -85,10 +92,11 @@ class Coordenador:
 
     def interface_comando(self):
         while self.executando:
-            comando = input("Digite um comando\n\n1: imprimir a fila de pedidos atual.\n2: imprimir quantas vezes cada processo foi atendido.\n3: encerrar a execução.\n\n")
+            comando = input("\nDigite um comando\n\n1: imprimir a fila de pedidos atual.\n2: imprimir quantas vezes cada processo foi atendido.\n3: encerrar a execução.\n\n")
             if comando == '1':
                 self.limpar_tela()
-                print("Fila de pedidos atual:", list(self.pedidos.queue))
+                print("Fila de pedidos atual:")
+                self.exibir_fila()
             elif comando == '2':
                 self.limpar_tela()
                 print("Quantidade de vezes que cada processo foi atendido:")
