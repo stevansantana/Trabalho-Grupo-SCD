@@ -2,63 +2,45 @@ import socket
 import threading
 import sys
 from datetime import datetime
-import time
+from random import randint
+from time import sleep
 
-class Processo:
-    def __init__(self, host, porta, id_processo, repeticoes, intervalo):
-        self.host = host
-        self.porta = porta
-        self.id_processo = id_processo
-        self.repeticoes = repeticoes
-        self.intervalo = intervalo
-        self.cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        
-    def iniciar(self):
-        for _ in range(self.repeticoes):
-            self.solicitar_acesso()
-            self.regiao_critica()
-            self.liberar_acesso()
+def iniciar_processo():
+    socket_processo = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    execucoes = 0
+
+    with socket_processo:
+        while execucoes < REPETICOES:
+            mensagem_request = f"1|{threading.current_thread().name}|".ljust(10, "0")
+            socket_processo.sendto(mensagem_request.encode(), ("localhost", 8080))
+
+            mensagem_coordenador, _ = socket_processo.recvfrom(10)
+            tipo_mensagem = mensagem_coordenador.decode().split("|")[0]
+
+            if tipo_mensagem == "2":
+                with open("resultado.txt", "a") as resultado:
+                    resultado.write(f"{datetime.now()} -- Processo {threading.current_thread().name}\n")
+                    sleep(randint(1, 4))
+                mensagem_release = f"3|{threading.current_thread().name}|".ljust(10, "0")
+                socket_processo.sendto(mensagem_release.encode(), ("localhost", 8080))
+                execucoes += 1
             
-    def solicitar_acesso(self):
-        mensagem = f"1|{self.id_processo}|".ljust(10, '0')
-        self.cliente_socket.sendto(mensagem.encode(), (self.host, self.porta))
-        print(f"Processo {self.id_processo} enviou REQUEST para o coordenador")
-    
-    def regiao_critica(self):
-        while True:
-            mensagem = (self.cliente_socket.recv(1024).decode('utf-8')).split('|')
-            if mensagem[0] == '2':
-                print(f"Coordenador enviou GRANT para o Processo {self.id_processo}")
-                tempo_atual = (datetime.now()).strftime("%H:%M:%S.%f")
-
-                with open('resultado.txt','a') as arquivo:
-                    arquivo.write(f"Processo {self.id_processo} --- {tempo_atual}\n")
-
-                time.sleep(self.intervalo)
-                break
-    
-    def liberar_acesso(self):
-        mensagem = f"3|{self.id_processo}|".ljust(10, '0')
-        self.cliente_socket.sendto(mensagem.encode(), (self.host, self.porta))
-        print(f"Processo {self.id_processo} enviou RELEASE para o coordenador")
+            sleep(randint(1, 4))
+            
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print('Erro nos argumentos, utilizar <Num de Processos> <Repeticoes> <Duracao do time.sleep>')
+    if len(sys.argv) != 3:
+        print("Erro nos argumentos, utilizar <Num de Processos> <Repeticoes>")
+        sys.exit(1)
 
-
-    def iniciar_processo(id, rep, dur):
-        p = Processo('localhost', 8080, id, rep, dur)
-        p.iniciar()
-
+    NUM_PROCESSOS = int(sys.argv[1])
+    REPETICOES = int(sys.argv[2])
     processos = []
-    for f in range(int(sys.argv[1])):
-        pr = threading.Thread(target=iniciar_processo, args=(f, int(sys.argv[2]), int(sys.argv[3])))
-        processos.append(pr)
-        pr.start()
 
-    for pr in processos:
-        pr.join()
-    
-        
-    
+    for id_processo in range(NUM_PROCESSOS):
+        processo = threading.Thread(target=iniciar_processo, name=str(id_processo + 1))
+        processos.append(processo)
+        processo.start()
+
+    for processo in processos:
+        processo.join()

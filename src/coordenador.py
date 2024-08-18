@@ -1,117 +1,109 @@
 import threading
-import socket
 import queue
+import socket
 import os
+from datetime import datetime
 
-mensagens_tamanho = 10
+def iniciar_terminal():
+    global executando
+    
+    while executando:
+        comando = input("\nDigite um comando\n\n1: imprimir a fila de pedidos atual.\n2: imprimir quantas vezes cada processo foi atendido.\n3: encerrar a execução.\n\n")
+        os.system("clear") if os.name == "posix" else os.system("cls")
 
-class Coordenador:
-    def __init__(self, host, porta):
-        self.host = host
-        self.porta = porta
-        self.pedidos = queue.Queue()
-        self.processos_atendidos = set()
-        self.mensagens_log = []
-        self.blocked = False
-        self.servidor_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.servidor_socket.bind((self.host, self.porta))
-        self.executando = True
-        self.threads = []
+        match comando:
+            case "1":
+                lista_pedidos = list(fila_pedidos.queue)
+                if len(lista_pedidos) == 0:
+                    print("Fila vazia")
+                else:
+                    print("Fila de pedidos atual:")
+                    for id_processo, _ in lista_pedidos:
+                        print(f"Processo {id_processo}")
+            case "2":
+                if not processos_atendidos:
+                    print("Nenhum processo atendido até o momento")
+                else:
+                    print("Quantidade de vezes que cada processo foi atendido:")
+                    for id_processo, qtd_atendimentos in processos_atendidos.items():
+                        print(f"Processo {id_processo}: {qtd_atendimentos}")  
+            case "3":
+                print("Encerrando execução...")
+                executando = False
+            case _:
+                print("Opção inválida")
+        
+        print("_________________________________________________________")
 
-    def iniciar_comunicacao(self):
+def receber_mensagens():
+    global recebido_release
+
+    while executando:
+        try:
+            socket_coordenador.settimeout(1)
+            mensagem, processo = socket_coordenador.recvfrom(10)
+            [tipo_mensagem, id_processo, _] = mensagem.decode().split("|")
+            match tipo_mensagem:
+                case "1":
+                    with lock_log:
+                        with open("log.txt", "a") as log:
+                            log.write(f"{datetime.now()} -- REQUEST -- Processo {id_processo}\n")
+                    fila_pedidos.put((id_processo, processo))
+                case "3":
+                    if id_processo in processos_atendidos:
+                        processos_atendidos[id_processo] += 1
+                    else:
+                        processos_atendidos[id_processo] = 1
+                    with lock_log:
+                        with open("log.txt", "a") as log:
+                            log.write(f"{datetime.now()} -- RELEASE -- Processo {id_processo}\n")
+                    recebido_release = True
+                case _:
+                    print(f"Mensagem inválida: {mensagem}")
+        except socket.timeout:
+            continue
+        except OSError:
+            break
+
+def garantir_exclusao_mutua():
+    global recebido_release
+    lock_resultado = threading.Lock()
+
+    while executando:
+        if not fila_pedidos.empty():
+            with lock_resultado:
+                id_processo, processo = fila_pedidos.get()
+                mensagem = f"2|{id_processo}|".ljust(10, "0")
+                socket_coordenador.sendto(mensagem.encode(), processo)
+                recebido_release = False
+                with lock_log:
+                    with open("log.txt", "a") as log:
+                        log.write(f"{datetime.now()} -- GRANT   -- Processo {id_processo}\n")
+                while not recebido_release:
+                    continue
+
+if __name__ == "__main__":
+    fila_pedidos = queue.Queue()
+    processos_atendidos = {}
+    socket_coordenador = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    lock_log = threading.Lock()
+    executando = True
+    recebido_release = False
+
+    for arquivo in ["log.txt", "resultado.txt"]:
+        os.remove(arquivo) if os.path.isfile(arquivo) else None
+
+    with socket_coordenador:
+        socket_coordenador.bind(("localhost", 8080))
+
         threads = [
-            threading.Thread(target=self.receber_mensagens),
-            threading.Thread(target=self.processar_pedidos),
-            threading.Thread(target=self.interface_comando)
+            threading.Thread(target=iniciar_terminal),
+            threading.Thread(target=receber_mensagens),
+            threading.Thread(target=garantir_exclusao_mutua)
         ]
+
         for thread in threads:
             thread.start()
-            self.threads.append(thread)
 
-    def receber_mensagens(self):
-        while self.executando:
-            try:
-                self.servidor_socket.settimeout(1)
-                pedido, cliente = self.servidor_socket.recvfrom(1024)
-                self.mensagens_log.append(pedido.decode('utf-8'))
-                pedido = (pedido.decode('utf-8')).split('|')
-                if pedido[0] == '1':
-                    self.adicionar_fila((pedido[1], cliente))
-                elif pedido[0] == '3':
-                    self.blocked = False
-                    print(f'Processo {pedido[1]} liberado.')
-                else:
-                    print(f'MENSAGEM INVALIDA: {pedido}')
-                self.processos_atendidos.add(pedido[1])
-            except socket.timeout:
-                continue
-            except OSError:
-                break
-
-    def adicionar_fila(self, processo):
-        if processo not in list(self.pedidos.queue):
-            self.pedidos.put(processo)
-            print(f'Processo {processo[0]} adicionado a fila.')
-            
-    def exibir_fila(self):
-        if self.pedidos.qsize() > 0:
-            for index, pr in enumerate(list(self.pedidos.queue)):
-                print(f'{index+1}° - Processo {pr[0]}')
-        else:
-            print('A fila esta vázia!')
-
-    def numerar_atendimentos(self):
-        for pr in self.processos_atendidos:
-            processo = int(pr)
-            request = grant = release = 0
-            for m in self.mensagens_log:
-                msg = m.split('|')
-                if int(msg[1]) == processo:
-                    if msg[0] == '1':
-                        request += 1
-                    if msg[0] == '2':
-                        grant += 1
-                    if msg[0] == '3':
-                        release += 1
-            print(f'Processo {processo}: REQUEST:{request}    GRANT:{grant}    RELEASE:{release}')
-
-    def processar_pedidos(self):
-        while self.executando:
-            if not self.blocked and not self.pedidos.empty():
-                id, cliente = self.pedidos.get()
-                self.blocked = True
-                mensagem = f"2|{id}|".ljust(10, '0')
-                self.servidor_socket.sendto(mensagem.encode('utf-8'), cliente)
-                self.mensagens_log.append(mensagem)
-
-    def limpar_tela(self):
-        if os.name == 'posix':
-            os.system('clear')
-        elif os.name == 'nt':
-            os.system('cls')
-
-    def interface_comando(self):
-        while self.executando:
-            comando = input("\nDigite um comando\n\n1: imprimir a fila de pedidos atual.\n2: imprimir quantas vezes cada processo foi atendido.\n3: encerrar a execução.\n\n")
-            if comando == '1':
-                self.limpar_tela()
-                print("Fila de pedidos atual:")
-                self.exibir_fila()
-            elif comando == '2':
-                self.limpar_tela()
-                print("Quantidade de vezes que cada processo foi atendido:")
-                self.numerar_atendimentos()
-            elif comando == '3':
-                self.limpar_tela()
-                print("Encerrando execução.")
-                self.executando = False
-                self.servidor_socket.close()
-                break
-
-        # Esperar as threads terminarem, exceto a thread atual (interface_comando)
-        for thread in self.threads:
-            if thread != threading.current_thread():
-                thread.join()
-
-coordenador = Coordenador('localhost', 8080)
-coordenador.iniciar_comunicacao()
+        for thread in threads:
+            thread.join()
